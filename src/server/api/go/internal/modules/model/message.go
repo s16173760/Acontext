@@ -16,6 +16,8 @@ type Message struct {
 
 	Role string `gorm:"type:text;not null;check:role IN ('user','assistant','system')" json:"role"`
 
+	Meta datatypes.JSONType[map[string]any] `gorm:"type:jsonb;not null;default:'{}'" swaggertype:"object" json:"meta"`
+
 	PartsMeta datatypes.JSONType[Asset] `gorm:"type:jsonb;not null" swaggertype:"-" json:"-"`
 	Parts     []Part                    `gorm:"-" swaggertype:"array,object" json:"parts"`
 
