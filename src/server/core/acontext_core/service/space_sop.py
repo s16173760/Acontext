@@ -34,14 +34,21 @@ async def space_sop_complete_task(body: SOPComplete, message: Message):
     
     try:
         async with DB_CLIENT.get_session_context() as db_session:
+            # First get the task to find its session_id
+            r = await TD.fetch_task(db_session, body.task_id)
+            if not r.ok():
+                LOG.error(f"Task not found: {body.task_id}")
+                return
+            task_data, _ = r.unpack()
+            
             # Verify session exists and has space
-            r = await SD.fetch_session(db_session, body.task_id)  # Using task_id as session_id for now
+            r = await SD.fetch_session(db_session, task_data.session_id)
             if not r.ok():
                 LOG.error(f"Session not found for task {body.task_id}")
                 return
             session_data, _ = r.unpack()
             if session_data.space_id is None:
-                LOG.info(f"Session {body.task_id} has no linked space")
+                LOG.info(f"Session {task_data.session_id} has no linked space")
                 return
             
             # Get project config
