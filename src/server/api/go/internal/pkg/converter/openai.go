@@ -20,7 +20,7 @@ func (c *OpenAIConverter) Convert(messages []model.Message, publicURLs map[strin
 		// Special handling: if user role contains only tool-result parts,
 		// convert to OpenAI's tool role
 		if msg.Role == "user" && c.isToolResultOnly(msg.Parts) {
-			toolMsg := c.convertToToolMessage(msg, publicURLs)
+			toolMsg := c.convertToToolMessage(msg)
 			result = append(result, toolMsg)
 		} else {
 			// Normal message conversion
@@ -29,7 +29,7 @@ func (c *OpenAIConverter) Convert(messages []model.Message, publicURLs map[strin
 				userMsg := c.convertToUserMessage(msg, publicURLs)
 				result = append(result, userMsg)
 			case "assistant":
-				assistantMsg := c.convertToAssistantMessage(msg, publicURLs)
+				assistantMsg := c.convertToAssistantMessage(msg)
 				result = append(result, assistantMsg)
 			case "system":
 				systemMsg := c.convertToSystemMessage(msg)
@@ -49,7 +49,22 @@ func (c *OpenAIConverter) convertToUserMessage(msg model.Message, publicURLs map
 	// Check if content should be string or array
 	if len(msg.Parts) == 1 && msg.Parts[0].Type == "text" {
 		// Single text part - use string content
-		return openai.UserMessage(msg.Parts[0].Text)
+		userParam := openai.ChatCompletionUserMessageParam{
+			Content: openai.ChatCompletionUserMessageParamContentUnion{
+				OfString: param.NewOpt(msg.Parts[0].Text),
+			},
+		}
+
+		// Add name field from message meta if present
+		if metaData := msg.Meta.Data(); len(metaData) > 0 {
+			if name, ok := metaData["name"].(string); ok && name != "" {
+				userParam.Name = param.NewOpt(name)
+			}
+		}
+
+		return openai.ChatCompletionMessageParamUnion{
+			OfUser: &userParam,
+		}
 	}
 
 	// Multiple parts or non-text parts - use array content
@@ -101,10 +116,25 @@ func (c *OpenAIConverter) convertToUserMessage(msg model.Message, publicURLs map
 		}
 	}
 
-	return openai.UserMessage(contentParts)
+	userParam := openai.ChatCompletionUserMessageParam{
+		Content: openai.ChatCompletionUserMessageParamContentUnion{
+			OfArrayOfContentParts: contentParts,
+		},
+	}
+
+	// Add name field from message meta if present
+	if metaData := msg.Meta.Data(); len(metaData) > 0 {
+		if name, ok := metaData["name"].(string); ok && name != "" {
+			userParam.Name = param.NewOpt(name)
+		}
+	}
+
+	return openai.ChatCompletionMessageParamUnion{
+		OfUser: &userParam,
+	}
 }
 
-func (c *OpenAIConverter) convertToAssistantMessage(msg model.Message, publicURLs map[string]service.PublicURL) openai.ChatCompletionMessageParamUnion {
+func (c *OpenAIConverter) convertToAssistantMessage(msg model.Message) openai.ChatCompletionMessageParamUnion {
 	// Separate text content and tool calls
 	var textContent string
 	var toolCalls []openai.ChatCompletionMessageToolCallUnionParam
@@ -136,6 +166,13 @@ func (c *OpenAIConverter) convertToAssistantMessage(msg model.Message, publicURL
 		assistantParam.ToolCalls = toolCalls
 	}
 
+	// Add name field from message meta if present
+	if metaData := msg.Meta.Data(); len(metaData) > 0 {
+		if name, ok := metaData["name"].(string); ok && name != "" {
+			assistantParam.Name = param.NewOpt(name)
+		}
+	}
+
 	return openai.ChatCompletionMessageParamUnion{
 		OfAssistant: &assistantParam,
 	}
@@ -150,10 +187,25 @@ func (c *OpenAIConverter) convertToSystemMessage(msg model.Message) openai.ChatC
 		}
 	}
 
-	return openai.SystemMessage(text)
+	systemParam := openai.ChatCompletionSystemMessageParam{
+		Content: openai.ChatCompletionSystemMessageParamContentUnion{
+			OfString: param.NewOpt(text),
+		},
+	}
+
+	// Add name field from message meta if present
+	if metaData := msg.Meta.Data(); len(metaData) > 0 {
+		if name, ok := metaData["name"].(string); ok && name != "" {
+			systemParam.Name = param.NewOpt(name)
+		}
+	}
+
+	return openai.ChatCompletionMessageParamUnion{
+		OfSystem: &systemParam,
+	}
 }
 
-func (c *OpenAIConverter) convertToToolMessage(msg model.Message, publicURLs map[string]service.PublicURL) openai.ChatCompletionMessageParamUnion {
+func (c *OpenAIConverter) convertToToolMessage(msg model.Message) openai.ChatCompletionMessageParamUnion {
 	// Extract tool result information
 	toolCallID := c.extractToolCallID(msg.Parts)
 	content := c.extractToolResultContent(msg.Parts)
@@ -175,8 +227,9 @@ func (c *OpenAIConverter) convertToToolCall(part model.Part) *openai.ChatComplet
 		return nil
 	}
 
+	// UNIFIED FORMAT: Use unified field names
 	id, _ := part.Meta["id"].(string)
-	toolName, _ := part.Meta["tool_name"].(string)
+	name, _ := part.Meta["name"].(string) // Unified: was "tool_name", now "name"
 	arguments, _ := part.Meta["arguments"].(string)
 
 	// If arguments is not a string, marshal it
@@ -188,14 +241,14 @@ func (c *OpenAIConverter) convertToToolCall(part model.Part) *openai.ChatComplet
 		}
 	}
 
-	if id == "" || toolName == "" {
+	if id == "" || name == "" {
 		return nil
 	}
 
 	functionParam := openai.ChatCompletionMessageFunctionToolCallParam{
 		ID: id,
 		Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-			Name:      toolName,
+			Name:      name,
 			Arguments: arguments,
 		},
 	}

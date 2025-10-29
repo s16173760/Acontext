@@ -14,11 +14,12 @@ import (
 type OpenAINormalizer struct{}
 
 // NormalizeFromOpenAIMessage converts OpenAI ChatCompletionMessageParamUnion to internal format
-func (n *OpenAINormalizer) NormalizeFromOpenAIMessage(messageJSON json.RawMessage) (string, []service.PartIn, error) {
+// Returns: role, parts, messageMeta, error
+func (n *OpenAINormalizer) NormalizeFromOpenAIMessage(messageJSON json.RawMessage) (string, []service.PartIn, map[string]interface{}, error) {
 	// Parse using official OpenAI SDK types
 	var message openai.ChatCompletionMessageParamUnion
 	if err := message.UnmarshalJSON(messageJSON); err != nil {
-		return "", nil, fmt.Errorf("failed to unmarshal OpenAI message: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to unmarshal OpenAI message: %w", err)
 	}
 
 	// Extract role and content based on message type
@@ -36,10 +37,10 @@ func (n *OpenAINormalizer) NormalizeFromOpenAIMessage(messageJSON json.RawMessag
 		return normalizeOpenAIDeveloperMessage(*message.OfDeveloper)
 	}
 
-	return "", nil, fmt.Errorf("unknown OpenAI message type")
+	return "", nil, nil, fmt.Errorf("unknown OpenAI message type")
 }
 
-func normalizeOpenAIUserMessage(msg openai.ChatCompletionUserMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAIUserMessage(msg openai.ChatCompletionUserMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	parts := []service.PartIn{}
 
 	// Handle content - can be string or array
@@ -52,18 +53,28 @@ func normalizeOpenAIUserMessage(msg openai.ChatCompletionUserMessageParam) (stri
 		for _, partUnion := range msg.Content.OfArrayOfContentParts {
 			part, err := normalizeOpenAIContentPart(partUnion)
 			if err != nil {
-				return "", nil, err
+				return "", nil, nil, err
 			}
 			parts = append(parts, part)
 		}
 	} else {
-		return "", nil, fmt.Errorf("OpenAI user message must have content")
+		return "", nil, nil, fmt.Errorf("OpenAI user message must have content")
 	}
 
-	return "user", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	// Extract name field if present
+	if !param.IsOmitted(msg.Name) {
+		messageMeta["name"] = msg.Name.Value
+	}
+
+	return "user", parts, messageMeta, nil
 }
 
-func normalizeOpenAIAssistantMessage(msg openai.ChatCompletionAssistantMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAIAssistantMessage(msg openai.ChatCompletionAssistantMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	parts := []service.PartIn{}
 
 	// Handle content - can be string or array
@@ -78,21 +89,22 @@ func normalizeOpenAIAssistantMessage(msg openai.ChatCompletionAssistantMessagePa
 		for _, partUnion := range msg.Content.OfArrayOfContentParts {
 			part, err := normalizeOpenAIAssistantContentPart(partUnion)
 			if err != nil {
-				return "", nil, err
+				return "", nil, nil, err
 			}
 			parts = append(parts, part)
 		}
 	}
 
-	// Handle tool calls
+	// Handle tool calls - UNIFIED FORMAT
 	for _, toolCall := range msg.ToolCalls {
 		if toolCall.OfFunction != nil {
 			parts = append(parts, service.PartIn{
 				Type: "tool-call",
 				Meta: map[string]interface{}{
 					"id":        toolCall.OfFunction.ID,
-					"tool_name": toolCall.OfFunction.Function.Name,
+					"name":      toolCall.OfFunction.Function.Name, // Unified: was "tool_name"
 					"arguments": toolCall.OfFunction.Function.Arguments,
+					"type":      "function", // Store tool type
 				},
 			})
 		}
@@ -103,16 +115,27 @@ func normalizeOpenAIAssistantMessage(msg openai.ChatCompletionAssistantMessagePa
 		parts = append(parts, service.PartIn{
 			Type: "tool-call",
 			Meta: map[string]interface{}{
-				"tool_name": msg.FunctionCall.Name,
+				"name":      msg.FunctionCall.Name, // Unified: was "tool_name"
 				"arguments": msg.FunctionCall.Arguments,
+				"type":      "function",
 			},
 		})
 	}
 
-	return "assistant", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	// Extract name field if present
+	if !param.IsOmitted(msg.Name) {
+		messageMeta["name"] = msg.Name.Value
+	}
+
+	return "assistant", parts, messageMeta, nil
 }
 
-func normalizeOpenAISystemMessage(msg openai.ChatCompletionSystemMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAISystemMessage(msg openai.ChatCompletionSystemMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	parts := []service.PartIn{}
 
 	// Handle content - can be string or array
@@ -129,13 +152,23 @@ func normalizeOpenAISystemMessage(msg openai.ChatCompletionSystemMessageParam) (
 			})
 		}
 	} else {
-		return "", nil, fmt.Errorf("OpenAI system message must have content")
+		return "", nil, nil, fmt.Errorf("OpenAI system message must have content")
 	}
 
-	return "system", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	// Extract name field if present
+	if !param.IsOmitted(msg.Name) {
+		messageMeta["name"] = msg.Name.Value
+	}
+
+	return "system", parts, messageMeta, nil
 }
 
-func normalizeOpenAIDeveloperMessage(msg openai.ChatCompletionDeveloperMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAIDeveloperMessage(msg openai.ChatCompletionDeveloperMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	parts := []service.PartIn{}
 
 	// Developer messages are converted to system messages
@@ -152,13 +185,23 @@ func normalizeOpenAIDeveloperMessage(msg openai.ChatCompletionDeveloperMessagePa
 			})
 		}
 	} else {
-		return "", nil, fmt.Errorf("OpenAI developer message must have content")
+		return "", nil, nil, fmt.Errorf("OpenAI developer message must have content")
 	}
 
-	return "system", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	// Extract name field if present
+	if !param.IsOmitted(msg.Name) {
+		messageMeta["name"] = msg.Name.Value
+	}
+
+	return "system", parts, messageMeta, nil
 }
 
-func normalizeOpenAIToolMessage(msg openai.ChatCompletionToolMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAIToolMessage(msg openai.ChatCompletionToolMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	parts := []service.PartIn{}
 
 	// Tool messages are converted to user messages with tool-result parts
@@ -175,14 +218,19 @@ func normalizeOpenAIToolMessage(msg openai.ChatCompletionToolMessageParam) (stri
 		Type: "tool-result",
 		Text: content,
 		Meta: map[string]interface{}{
-			"tool_call_id": msg.ToolCallID,
+			"tool_call_id": msg.ToolCallID, // Keep as tool_call_id (unified format)
 		},
 	})
 
-	return "user", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	return "user", parts, messageMeta, nil
 }
 
-func normalizeOpenAIFunctionMessage(msg openai.ChatCompletionFunctionMessageParam) (string, []service.PartIn, error) {
+func normalizeOpenAIFunctionMessage(msg openai.ChatCompletionFunctionMessageParam) (string, []service.PartIn, map[string]interface{}, error) {
 	// Function messages are converted to user messages with tool-result parts
 	content := ""
 	if !param.IsOmitted(msg.Content) {
@@ -194,12 +242,17 @@ func normalizeOpenAIFunctionMessage(msg openai.ChatCompletionFunctionMessagePara
 			Type: "tool-result",
 			Text: content,
 			Meta: map[string]interface{}{
-				"function_name": msg.Name,
+				"function_name": msg.Name, // Keep function_name for deprecated function format
 			},
 		},
 	}
 
-	return "user", parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "openai",
+	}
+
+	return "user", parts, messageMeta, nil
 }
 
 func normalizeOpenAIContentPart(partUnion openai.ChatCompletionContentPartUnionParam) (service.PartIn, error) {

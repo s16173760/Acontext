@@ -86,18 +86,10 @@ func (c *AnthropicConverter) convertParts(parts []model.Part, publicURLs map[str
 				contentBlocks = append(contentBlocks, *imageBlock)
 			}
 
-		case "tool-use":
-			if part.Meta != nil {
-				toolUseBlock := c.convertToolUsePart(part)
-				if toolUseBlock != nil {
-					contentBlocks = append(contentBlocks, *toolUseBlock)
-				}
-			}
-
 		case "tool-call":
-			// OpenAI style tool_call, convert to Anthropic tool_use
+			// UNIFIED FORMAT: Convert tool-call to Anthropic tool_use
 			if part.Meta != nil {
-				toolUseBlock := c.convertToolCallToToolUse(part)
+				toolUseBlock := c.convertToolCallPart(part)
 				if toolUseBlock != nil {
 					contentBlocks = append(contentBlocks, *toolUseBlock)
 				}
@@ -166,47 +158,20 @@ func (c *AnthropicConverter) convertImagePart(part model.Part, publicURLs map[st
 	return nil
 }
 
-func (c *AnthropicConverter) convertToolUsePart(part model.Part) *anthropic.ContentBlockParamUnion {
+func (c *AnthropicConverter) convertToolCallPart(part model.Part) *anthropic.ContentBlockParamUnion {
 	if part.Meta == nil {
 		return nil
 	}
 
+	// UNIFIED FORMAT: Extract from unified field names
 	id, _ := part.Meta["id"].(string)
-	name, _ := part.Meta["name"].(string)
+	name, _ := part.Meta["name"].(string) // Unified field name
 
 	if id == "" || name == "" {
 		return nil
 	}
 
-	// Parse input
-	var input interface{}
-	if inputStr, ok := part.Meta["input"].(string); ok {
-		// Input is JSON string, unmarshal it
-		if err := json.Unmarshal([]byte(inputStr), &input); err != nil {
-			input = map[string]interface{}{}
-		}
-	} else {
-		// Input is already an object
-		input = part.Meta["input"]
-	}
-
-	block := anthropic.NewToolUseBlock(id, input, name)
-	return &block
-}
-
-func (c *AnthropicConverter) convertToolCallToToolUse(part model.Part) *anthropic.ContentBlockParamUnion {
-	if part.Meta == nil {
-		return nil
-	}
-
-	id, _ := part.Meta["id"].(string)
-	toolName, _ := part.Meta["tool_name"].(string)
-
-	if id == "" || toolName == "" {
-		return nil
-	}
-
-	// Parse arguments
+	// Parse arguments (unified field name)
 	var input interface{}
 	if argsStr, ok := part.Meta["arguments"].(string); ok {
 		// Arguments is JSON string, unmarshal it
@@ -218,23 +183,18 @@ func (c *AnthropicConverter) convertToolCallToToolUse(part model.Part) *anthropi
 		input = part.Meta["arguments"]
 	}
 
-	block := anthropic.NewToolUseBlock(id, input, toolName)
+	block := anthropic.NewToolUseBlock(id, input, name)
 	return &block
 }
 
 func (c *AnthropicConverter) convertToolResultPart(part model.Part) *anthropic.ContentBlockParamUnion {
+	// UNIFIED FORMAT: Use tool_call_id (unified field name)
 	toolUseID := ""
 	isError := false
 
 	if part.Meta != nil {
-		if id, ok := part.Meta["tool_use_id"].(string); ok {
+		if id, ok := part.Meta["tool_call_id"].(string); ok { // Unified field name
 			toolUseID = id
-		}
-		// Also check for OpenAI-style tool_call_id
-		if toolUseID == "" {
-			if id, ok := part.Meta["tool_call_id"].(string); ok {
-				toolUseID = id
-			}
 		}
 		if err, ok := part.Meta["is_error"].(bool); ok {
 			isError = err

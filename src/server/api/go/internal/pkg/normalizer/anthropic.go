@@ -14,17 +14,18 @@ import (
 type AnthropicNormalizer struct{}
 
 // NormalizeFromAnthropicMessage converts Anthropic MessageParam to internal format
-func (n *AnthropicNormalizer) NormalizeFromAnthropicMessage(messageJSON json.RawMessage) (string, []service.PartIn, error) {
+// Returns: role, parts, messageMeta, error
+func (n *AnthropicNormalizer) NormalizeFromAnthropicMessage(messageJSON json.RawMessage) (string, []service.PartIn, map[string]interface{}, error) {
 	// Parse using official Anthropic SDK types
 	var message anthropic.MessageParam
 	if err := message.UnmarshalJSON(messageJSON); err != nil {
-		return "", nil, fmt.Errorf("failed to unmarshal Anthropic message: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to unmarshal Anthropic message: %w", err)
 	}
 
 	// Validate role (Anthropic only supports "user" and "assistant")
 	role := string(message.Role)
 	if role != "user" && role != "assistant" {
-		return "", nil, fmt.Errorf("invalid Anthropic role: %s (only 'user' and 'assistant' are supported)", role)
+		return "", nil, nil, fmt.Errorf("invalid Anthropic role: %s (only 'user' and 'assistant' are supported)", role)
 	}
 
 	// Convert content blocks
@@ -32,12 +33,17 @@ func (n *AnthropicNormalizer) NormalizeFromAnthropicMessage(messageJSON json.Raw
 	for _, blockUnion := range message.Content {
 		part, err := normalizeAnthropicContentBlock(blockUnion)
 		if err != nil {
-			return "", nil, err
+			return "", nil, nil, err
 		}
 		parts = append(parts, part)
 	}
 
-	return role, parts, nil
+	// Extract message-level metadata
+	messageMeta := map[string]interface{}{
+		"source_format": "anthropic",
+	}
+
+	return role, parts, messageMeta, nil
 }
 
 func normalizeAnthropicContentBlock(blockUnion anthropic.ContentBlockParamUnion) (service.PartIn, error) {
@@ -83,10 +89,12 @@ func normalizeAnthropicContentBlock(blockUnion anthropic.ContentBlockParamUnion)
 			return service.PartIn{}, fmt.Errorf("failed to marshal tool input: %w", err)
 		}
 
+		// UNIFIED FORMAT: tool-call with unified field names
 		meta := map[string]interface{}{
-			"id":    blockUnion.OfToolUse.ID,
-			"name":  blockUnion.OfToolUse.Name,
-			"input": string(argsBytes),
+			"id":        blockUnion.OfToolUse.ID,
+			"name":      blockUnion.OfToolUse.Name, // Unified: same as OpenAI
+			"arguments": string(argsBytes),         // Unified: was "input", now "arguments"
+			"type":      "tool_use",                // Store original Anthropic type for reference
 		}
 
 		// Extract cache_control if present
@@ -95,7 +103,7 @@ func normalizeAnthropicContentBlock(blockUnion anthropic.ContentBlockParamUnion)
 		}
 
 		return service.PartIn{
-			Type: "tool-use",
+			Type: "tool-call", // Unified: was "tool-use", now "tool-call"
 			Meta: meta,
 		}, nil
 	} else if blockUnion.OfToolResult != nil {
@@ -112,9 +120,10 @@ func normalizeAnthropicContentBlock(blockUnion anthropic.ContentBlockParamUnion)
 			isError = blockUnion.OfToolResult.IsError.Value
 		}
 
+		// UNIFIED FORMAT: tool_call_id instead of tool_use_id
 		meta := map[string]interface{}{
-			"tool_use_id": blockUnion.OfToolResult.ToolUseID,
-			"is_error":    isError,
+			"tool_call_id": blockUnion.OfToolResult.ToolUseID, // Unified: was "tool_use_id", now "tool_call_id"
+			"is_error":     isError,
 		}
 
 		// Extract cache_control if present

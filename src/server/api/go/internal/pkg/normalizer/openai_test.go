@@ -206,7 +206,7 @@ func TestOpenAINormalizer_NormalizeFromOpenAIMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(tt.input))
+			role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(tt.input))
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -217,6 +217,9 @@ func TestOpenAINormalizer_NormalizeFromOpenAIMessage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantRole, role)
 				assert.Len(t, parts, tt.wantPartCnt)
+				// Verify message metadata
+				assert.NotNil(t, messageMeta)
+				assert.Equal(t, "openai", messageMeta["source_format"])
 			}
 		})
 	}
@@ -270,12 +273,14 @@ func TestOpenAINormalizer_ContentPartTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(tt.input))
+			role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(tt.input))
 
 			assert.NoError(t, err)
 			assert.Equal(t, "user", role)
 			assert.Len(t, parts, 1)
 			assert.Equal(t, tt.wantPartType, parts[0].Type)
+			assert.NotNil(t, messageMeta)
+			assert.Equal(t, "openai", messageMeta["source_format"])
 		})
 	}
 }
@@ -298,7 +303,7 @@ func TestOpenAINormalizer_ToolCallsAndResults(t *testing.T) {
 			]
 		}`
 
-		role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
+		role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
 
 		assert.NoError(t, err)
 		assert.Equal(t, "assistant", role)
@@ -306,7 +311,11 @@ func TestOpenAINormalizer_ToolCallsAndResults(t *testing.T) {
 		assert.Equal(t, "tool-call", parts[0].Type)
 		assert.NotNil(t, parts[0].Meta)
 		assert.Equal(t, "call_123", parts[0].Meta["id"])
-		assert.Equal(t, "calculate", parts[0].Meta["tool_name"])
+		// UNIFIED FORMAT: now uses "name" instead of "tool_name"
+		assert.Equal(t, "calculate", parts[0].Meta["name"])
+		assert.Equal(t, "function", parts[0].Meta["type"])
+		assert.NotNil(t, messageMeta)
+		assert.Equal(t, "openai", messageMeta["source_format"])
 	})
 
 	t.Run("tool result message", func(t *testing.T) {
@@ -316,14 +325,17 @@ func TestOpenAINormalizer_ToolCallsAndResults(t *testing.T) {
 			"tool_call_id": "call_123"
 		}`
 
-		role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
+		role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
 
 		assert.NoError(t, err)
 		assert.Equal(t, "user", role)
 		assert.Len(t, parts, 1)
 		assert.Equal(t, "tool-result", parts[0].Type)
 		assert.Equal(t, "Result: 8", parts[0].Text)
+		// UNIFIED FORMAT: uses "tool_call_id"
 		assert.Equal(t, "call_123", parts[0].Meta["tool_call_id"])
+		assert.NotNil(t, messageMeta)
+		assert.Equal(t, "openai", messageMeta["source_format"])
 	})
 
 	t.Run("deprecated function call", func(t *testing.T) {
@@ -335,13 +347,17 @@ func TestOpenAINormalizer_ToolCallsAndResults(t *testing.T) {
 			}
 		}`
 
-		role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
+		role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
 
 		assert.NoError(t, err)
 		assert.Equal(t, "assistant", role)
 		assert.Len(t, parts, 1)
 		assert.Equal(t, "tool-call", parts[0].Type)
-		assert.Equal(t, "old_function", parts[0].Meta["tool_name"])
+		// UNIFIED FORMAT: now uses "name" instead of "tool_name"
+		assert.Equal(t, "old_function", parts[0].Meta["name"])
+		assert.Equal(t, "function", parts[0].Meta["type"])
+		assert.NotNil(t, messageMeta)
+		assert.Equal(t, "openai", messageMeta["source_format"])
 	})
 }
 
@@ -360,7 +376,7 @@ func TestOpenAINormalizer_MultipleContentParts(t *testing.T) {
 		]
 	}`
 
-	role, parts, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
+	role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
 
 	assert.NoError(t, err)
 	assert.Equal(t, "user", role)
@@ -370,4 +386,26 @@ func TestOpenAINormalizer_MultipleContentParts(t *testing.T) {
 	assert.Equal(t, "text", parts[1].Type)
 	assert.Equal(t, "Second part", parts[1].Text)
 	assert.Equal(t, "image", parts[2].Type)
+	assert.NotNil(t, messageMeta)
+	assert.Equal(t, "openai", messageMeta["source_format"])
+}
+
+func TestOpenAINormalizer_MessageWithName(t *testing.T) {
+	normalizer := &OpenAINormalizer{}
+
+	input := `{
+		"role": "user",
+		"name": "Alice",
+		"content": "Hello, I'm Alice"
+	}`
+
+	role, parts, messageMeta, err := normalizer.NormalizeFromOpenAIMessage(json.RawMessage(input))
+
+	assert.NoError(t, err)
+	assert.Equal(t, "user", role)
+	assert.Len(t, parts, 1)
+	assert.Equal(t, "text", parts[0].Type)
+	assert.NotNil(t, messageMeta)
+	assert.Equal(t, "openai", messageMeta["source_format"])
+	assert.Equal(t, "Alice", messageMeta["name"])
 }

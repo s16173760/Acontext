@@ -76,7 +76,7 @@ func TestAcontextNormalizer_NormalizeFromAcontextMessage(t *testing.T) {
 						"type": "tool-call",
 						"meta": {
 							"id": "call_123",
-							"tool_name": "get_weather",
+							"name": "get_weather",
 							"arguments": "{\"location\":\"SF\"}"
 						}
 					}
@@ -148,7 +148,7 @@ func TestAcontextNormalizer_NormalizeFromAcontextMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			role, parts, err := normalizer.NormalizeFromAcontextMessage(json.RawMessage(tt.input))
+			role, parts, messageMeta, err := normalizer.NormalizeFromAcontextMessage(json.RawMessage(tt.input))
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -159,6 +159,9 @@ func TestAcontextNormalizer_NormalizeFromAcontextMessage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantRole, role)
 				assert.Len(t, parts, tt.wantPartCnt)
+				// Verify message metadata
+				assert.NotNil(t, messageMeta)
+				assert.Equal(t, "acontext", messageMeta["source_format"])
 			}
 		})
 	}
@@ -176,20 +179,46 @@ func TestAcontextNormalizer_ValidatePartTypes(t *testing.T) {
 		{"audio", `{"role": "user", "parts": [{"type": "audio", "meta": {"url": "https://example.com/audio.mp3"}}]}`},
 		{"video", `{"role": "user", "parts": [{"type": "video", "meta": {"url": "https://example.com/video.mp4"}}]}`},
 		{"file", `{"role": "user", "parts": [{"type": "file", "meta": {"url": "https://example.com/file.pdf"}}]}`},
-		{"tool-call", `{"role": "assistant", "parts": [{"type": "tool-call", "meta": {"tool_name": "test", "arguments": "{}"}}]}`},
-		{"tool-use", `{"role": "assistant", "parts": [{"type": "tool-use", "meta": {"name": "test", "input": "{}"}}]}`},
+		{"tool-call", `{"role": "assistant", "parts": [{"type": "tool-call", "meta": {"name": "test", "arguments": "{}"}}]}`},
 		{"tool-result", `{"role": "user", "parts": [{"type": "tool-result", "text": "result", "meta": {"tool_call_id": "call_123"}}]}`},
 		{"data", `{"role": "user", "parts": [{"type": "data", "meta": {"data_type": "json", "key": "value"}}]}`},
 	}
 
 	for _, tt := range tests {
 		t.Run("valid_type_"+tt.partType, func(t *testing.T) {
-			role, parts, err := normalizer.NormalizeFromAcontextMessage(json.RawMessage(tt.input))
+			role, parts, messageMeta, err := normalizer.NormalizeFromAcontextMessage(json.RawMessage(tt.input))
 
 			assert.NoError(t, err)
 			assert.NotEmpty(t, role)
 			assert.Len(t, parts, 1)
 			assert.Equal(t, tt.partType, parts[0].Type)
+			assert.NotNil(t, messageMeta)
+			assert.Equal(t, "acontext", messageMeta["source_format"])
 		})
 	}
+}
+
+func TestAcontextNormalizer_MessageWithMeta(t *testing.T) {
+	normalizer := &AcontextNormalizer{}
+
+	input := `{
+		"role": "user",
+		"meta": {
+			"name": "Alice",
+			"custom_field": "custom_value"
+		},
+		"parts": [
+			{"type": "text", "text": "Hello"}
+		]
+	}`
+
+	role, parts, messageMeta, err := normalizer.NormalizeFromAcontextMessage(json.RawMessage(input))
+
+	assert.NoError(t, err)
+	assert.Equal(t, "user", role)
+	assert.Len(t, parts, 1)
+	assert.NotNil(t, messageMeta)
+	assert.Equal(t, "acontext", messageMeta["source_format"])
+	assert.Equal(t, "Alice", messageMeta["name"])
+	assert.Equal(t, "custom_value", messageMeta["custom_field"])
 }

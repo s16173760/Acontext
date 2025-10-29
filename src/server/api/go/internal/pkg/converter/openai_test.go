@@ -28,14 +28,16 @@ func TestOpenAIConverter_Convert_TextMessage(t *testing.T) {
 func TestOpenAIConverter_Convert_AssistantWithToolCalls(t *testing.T) {
 	converter := &OpenAIConverter{}
 
+	// UNIFIED FORMAT: now uses unified field names
 	messages := []model.Message{
 		createTestMessage("assistant", []model.Part{
 			{
 				Type: "tool-call",
 				Meta: map[string]any{
 					"id":        "call_123",
-					"tool_name": "get_weather",
-					"arguments": map[string]interface{}{"city": "SF"},
+					"name":      "get_weather",       // Unified: was "tool_name", now "name"
+					"arguments": "{\"city\":\"SF\"}", // Unified: JSON string format
+					"type":      "function",          // Store tool type
 				},
 			},
 		}, nil),

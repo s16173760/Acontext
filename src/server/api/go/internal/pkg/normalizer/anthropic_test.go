@@ -204,7 +204,7 @@ func TestAnthropicNormalizer_NormalizeFromAnthropicMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			role, parts, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(tt.input))
+			role, parts, messageMeta, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(tt.input))
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -215,6 +215,9 @@ func TestAnthropicNormalizer_NormalizeFromAnthropicMessage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantRole, role)
 				assert.Len(t, parts, tt.wantPartCnt)
+				// Verify message metadata
+				assert.NotNil(t, messageMeta)
+				assert.Equal(t, "anthropic", messageMeta["source_format"])
 			}
 		})
 	}
@@ -275,11 +278,13 @@ func TestAnthropicNormalizer_ContentBlockTypes(t *testing.T) {
 					}
 				]
 			}`,
-			wantPartType: "tool-use",
+			wantPartType: "tool-call", // UNIFIED FORMAT: was "tool-use", now "tool-call"
 			checkMeta: func(t *testing.T, meta map[string]interface{}) {
 				assert.Equal(t, "toolu_789", meta["id"])
 				assert.Equal(t, "calculator", meta["name"])
-				assert.Contains(t, meta["input"], "operation")
+				// UNIFIED FORMAT: was "input", now "arguments"
+				assert.Contains(t, meta["arguments"], "operation")
+				assert.Equal(t, "tool_use", meta["type"]) // Store original type
 			},
 		},
 		{
@@ -298,7 +303,8 @@ func TestAnthropicNormalizer_ContentBlockTypes(t *testing.T) {
 			}`,
 			wantPartType: "tool-result",
 			checkMeta: func(t *testing.T, meta map[string]interface{}) {
-				assert.Equal(t, "toolu_789", meta["tool_use_id"])
+				// UNIFIED FORMAT: was "tool_use_id", now "tool_call_id"
+				assert.Equal(t, "toolu_789", meta["tool_call_id"])
 				assert.Equal(t, false, meta["is_error"])
 			},
 		},
@@ -328,11 +334,13 @@ func TestAnthropicNormalizer_ContentBlockTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, parts, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(tt.input))
+			_, parts, messageMeta, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(tt.input))
 
 			assert.NoError(t, err)
 			assert.Len(t, parts, 1)
 			assert.Equal(t, tt.wantPartType, parts[0].Type)
+			assert.NotNil(t, messageMeta)
+			assert.Equal(t, "anthropic", messageMeta["source_format"])
 
 			if tt.checkMeta != nil && parts[0].Meta != nil {
 				tt.checkMeta(t, parts[0].Meta)
@@ -355,12 +363,14 @@ func TestAnthropicNormalizer_CacheControl(t *testing.T) {
 		]
 	}`
 
-	role, parts, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(input))
+	role, parts, messageMeta, err := normalizer.NormalizeFromAnthropicMessage(json.RawMessage(input))
 
 	assert.NoError(t, err)
 	assert.Equal(t, "user", role)
 	assert.Len(t, parts, 1)
 	assert.NotNil(t, parts[0].Meta)
+	assert.NotNil(t, messageMeta)
+	assert.Equal(t, "anthropic", messageMeta["source_format"])
 
 	cacheControl, ok := parts[0].Meta["cache_control"].(map[string]interface{})
 	assert.True(t, ok)

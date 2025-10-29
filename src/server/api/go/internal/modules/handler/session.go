@@ -323,6 +323,7 @@ func (h *SessionHandler) SendMessage(c *gin.Context) {
 	// Blob contains the complete message object, directly use official SDK validation
 	var normalizedRole string
 	var normalizedParts []service.PartIn
+	var normalizedMeta map[string]interface{}
 	var fileFields []string
 
 	blobJSON, err := sonic.Marshal(req.Blob)
@@ -335,7 +336,7 @@ func (h *SessionHandler) SendMessage(c *gin.Context) {
 	case model.FormatAcontext:
 		// Parse and validate using Acontext normalizer
 		norm := &normalizer.AcontextNormalizer{}
-		normalizedRole, normalizedParts, err = norm.NormalizeFromAcontextMessage(blobJSON)
+		normalizedRole, normalizedParts, normalizedMeta, err = norm.NormalizeFromAcontextMessage(blobJSON)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, serializer.ParamErr("failed to normalize Acontext message", err))
 			return
@@ -351,7 +352,7 @@ func (h *SessionHandler) SendMessage(c *gin.Context) {
 	case model.FormatOpenAI:
 		// Parse and validate using official OpenAI SDK
 		norm := &normalizer.OpenAINormalizer{}
-		normalizedRole, normalizedParts, err = norm.NormalizeFromOpenAIMessage(blobJSON)
+		normalizedRole, normalizedParts, normalizedMeta, err = norm.NormalizeFromOpenAIMessage(blobJSON)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, serializer.ParamErr("failed to normalize OpenAI message", err))
 			return
@@ -367,7 +368,7 @@ func (h *SessionHandler) SendMessage(c *gin.Context) {
 	case model.FormatAnthropic:
 		// Parse and validate using official Anthropic SDK
 		norm := &normalizer.AnthropicNormalizer{}
-		normalizedRole, normalizedParts, err = norm.NormalizeFromAnthropicMessage(blobJSON)
+		normalizedRole, normalizedParts, normalizedMeta, err = norm.NormalizeFromAnthropicMessage(blobJSON)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, serializer.ParamErr("failed to normalize Anthropic message", err))
 			return
@@ -417,11 +418,12 @@ func (h *SessionHandler) SendMessage(c *gin.Context) {
 	}
 
 	out, err := h.svc.SendMessage(c.Request.Context(), service.SendMessageInput{
-		ProjectID: project.ID,
-		SessionID: sessionID,
-		Role:      normalizedRole,
-		Parts:     normalizedParts,
-		Files:     fileMap,
+		ProjectID:   project.ID,
+		SessionID:   sessionID,
+		Role:        normalizedRole,
+		Parts:       normalizedParts,
+		MessageMeta: normalizedMeta,
+		Files:       fileMap,
 	})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, serializer.DBErr("", err))
