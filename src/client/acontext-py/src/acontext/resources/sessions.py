@@ -1,16 +1,18 @@
 """Sessions endpoints."""
 
 import json
-from dataclasses import asdict, field, is_dataclass
+from dataclasses import asdict
 from enum import Enum
 from typing import Any, BinaryIO, Mapping, MutableMapping
 
 from ..client_types import RequesterProtocol
-from ..messages import AcontextMessage, MessagePart
-from ..uploads import FileUpload, normalize_file_upload
+from ..messages import AcontextMessage
+from ..uploads import FileUpload
+from openai.types.chat import ChatCompletionMessageParam
+from anthropic.types import MessageParam
 
 UploadPayload = FileUpload | tuple[str, BinaryIO | bytes] | tuple[str, BinaryIO | bytes, str | None]
-MessageBlob = AcontextMessage 
+MessageBlob = AcontextMessage | ChatCompletionMessageParam | MessageParam
 
 
 class SessionsAPI:
@@ -75,9 +77,13 @@ class SessionsAPI:
             raise ValueError("format must be one of {'acontext', 'openai', 'anthropic'}")
 
         payload = {
-            "blob": asdict(blob),
             "format": format,
         }
+        if format == "acontext":
+           payload["blob"] = asdict(blob)
+        else:
+           payload["blob"] = blob
+
 
         file_payload: dict[str, tuple[str, BinaryIO, str | None]] | None = None
         if file:
@@ -108,6 +114,7 @@ class SessionsAPI:
         cursor: str | None = None,
         with_asset_public_url: bool | None = None,
         format: str | None = None,
+        time_desc: bool | None = None,
     ) -> Any:
         params: dict[str, Any] = {}
         if limit is not None:
@@ -118,4 +125,6 @@ class SessionsAPI:
             params["with_asset_public_url"] = "true" if with_asset_public_url else "false"
         if format is not None:
             params["format"] = format
+        if time_desc is not None:
+            params["time_desc"] = "true" if time_desc else "false"
         return self._requester.request("GET", f"/session/{session_id}/messages", params=params or None)

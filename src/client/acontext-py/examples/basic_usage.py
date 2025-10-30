@@ -4,12 +4,14 @@ End-to-end usage sample for the Acontext Python SDK.
 
 import sys
 import os
+import json
+from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionAssistantMessageParam, ChatCompletionMessageFunctionToolCallParam
+from openai.types.chat.chat_completion_content_part_param import File, FileFile
+from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
-from acontext.resources.sessions import UploadPayload
+from anthropic.types import MessageParam, DocumentBlockParam,PlainTextSourceParam, TextBlockParam, ToolUseBlockParam
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from dataclasses import asdict
 
 from acontext import AcontextClient, MessagePart, FileUpload
 from acontext.messages import build_acontext_message
@@ -22,14 +24,16 @@ def main() -> None:
         space = client.spaces.create(configs={"name": "Example Space"})
         space_id = space["id"]
 
+        # use acontext format
+        ## normal text
         session = client.sessions.create(space_id=space_id)
         blob = build_acontext_message(
             role="user",
-            parts=[MessagePart.text_part("Hello from the example!")],
+            parts=[MessagePart.text_part("Hello from acontext!")],
         )
         client.sessions.send_message(session["id"], blob=blob, format="acontext")
 
-        # Attach a file
+        ## Attach a file
         file_field = "retro_notes.md"
         blob = build_acontext_message(
             role="user",
@@ -44,10 +48,149 @@ def main() -> None:
             file_field=file_field,
             file=FileUpload(
                 filename=file_field,
-                content=b"# Retro Notes\nWe shipped file uploads successfully!\n",
+                content=b"# Retro Notes\nWe shipped file uploads successfully by using acontext format!\n",
                 content_type="text/markdown",
             )
         )
+
+        ## Tool call
+        blob = build_acontext_message(
+            role="assistant",
+            parts=[
+                MessagePart(
+                    type="text",
+                    text="Sure! I'll help you create a weather API client. Let me first check what weather APIs are available."
+                ),
+                MessagePart(
+                    type="tool-call",
+                    meta={
+                        "id": "call_001",
+                        "name": "search_apis",
+                        "arguments": "{\"query\": \"weather API free\", \"type\": \"public\"}"
+                    }
+                ),
+            ],
+        )
+        client.sessions.send_message(
+            session["id"],
+            blob=blob,
+            format="acontext",
+        )
+
+
+        # use openai format
+        blob = ChatCompletionUserMessageParam(
+            role="user",
+            content="Hello from openai"
+        )
+        client.sessions.send_message(session["id"], blob=blob, format="openai")
+
+        file_field = "retro_notes.md"
+        blob = ChatCompletionUserMessageParam(
+            role="user",
+            content=[
+                File(
+                    file=FileFile(
+                        file_id=file_field,
+                        filename=file_field
+                    ),
+                    type="file"
+                )
+            ]
+        )
+        client.sessions.send_message(
+            session["id"],
+            blob=blob,
+            format="openai",
+            file_field=file_field,
+            file=FileUpload(
+                filename=file_field,
+                content=b"# Retro Notes\nWe shipped file uploads successfully by using openai format!\n",
+                content_type="text/markdown",
+            )
+        )
+        blob = ChatCompletionAssistantMessageParam(
+            role="assistant",
+            content="Sure! I'll help you create a weather API client. Let me first check what weather APIs are available.",
+            tool_calls=[
+                ChatCompletionMessageFunctionToolCallParam(
+                    type="function",
+                    id="call_001",
+                    function=Function(
+                        name="search_apis",
+                        arguments="{\"query\": \"weather API free\", \"type\": \"public\"}"
+                    )
+                )
+            ]
+        )
+        client.sessions.send_message(
+            session["id"],
+            blob=blob,
+            format="openai",
+        )
+
+
+        # use anthropic format
+        blob = MessageParam(
+            role="user",
+            content="Hello from anthropic"
+        )
+        client.sessions.send_message(session["id"], blob=blob, format="anthropic")
+
+        file_field = "retro_notes.md"
+        blob = MessageParam(
+            role="user",
+            content=[
+                DocumentBlockParam(
+                    source=PlainTextSourceParam(data="Retro Notes\nWe shipped file uploads successfully by using anthropic format!"),
+                    type="document",
+                )
+            ]
+        )
+        client.sessions.send_message(
+            session["id"],
+            blob=blob,
+            format="anthropic",
+            file_field=file_field,
+            file=FileUpload(
+                filename=file_field,
+                content=b"# Retro Notes\nWe shipped file uploads successfully by using openai format!\n",
+                content_type="text/markdown",
+            )
+        )
+        blob = MessageParam(
+            role="assistant",
+            content=[
+                TextBlockParam(
+                    type="text",
+                    text="Sure! I'll help you create a weather API client. Let me first check what weather APIs are available."
+                ),
+                ToolUseBlockParam(
+                    id="call_001",
+                    type="tool_use",
+                    name="search_apis",
+                    input={
+                        "query": "weather API free",
+                        "type": "public"
+                    }
+                )
+            ]
+        ) 
+        client.sessions.send_message(
+            session["id"],
+            blob=blob,
+            format="anthropic",
+        )
+
+
+        # Get message
+        messages = client.sessions.get_messages(
+            session["id"],
+            limit=5,
+            with_asset_public_url=False,
+            format="acontext",
+        )
+        print("Recent messages:", json.dumps(messages, indent=2))
 
         # Upload a file to a disk-backed artifact store for later reuse
         disk = client.disks.create()
