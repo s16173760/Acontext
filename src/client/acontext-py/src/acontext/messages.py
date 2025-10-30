@@ -3,7 +3,7 @@ Support for constructing session messages.
 """
 
 from dataclasses import dataclass
-from typing import Any, Mapping, MutableMapping, Sequence, Tuple
+from typing import Any, Mapping, MutableMapping, Sequence
 
 @dataclass(slots=True)
 class MessagePart:

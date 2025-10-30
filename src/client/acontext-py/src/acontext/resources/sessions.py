@@ -2,7 +2,6 @@
 
 import json
 from dataclasses import asdict
-from enum import Enum
 from typing import Any, BinaryIO, Mapping, MutableMapping
 
 from ..client_types import RequesterProtocol
