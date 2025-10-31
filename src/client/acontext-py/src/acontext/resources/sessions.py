@@ -1,8 +1,9 @@
 """Sessions endpoints."""
 
 import json
+from collections.abc import Mapping, MutableMapping
 from dataclasses import asdict
-from typing import Any, BinaryIO, Mapping, MutableMapping
+from typing import Any, BinaryIO, Literal
 
 from ..client_types import RequesterProtocol
 from ..messages import AcontextMessage
@@ -86,7 +87,7 @@ class SessionsAPI:
         session_id: str,
         *,
         blob: MessageBlob,
-        format: str | None = "acontext",
+        format: Literal["acontext", "openai", "anthropic"] = "acontext",
         file_field: str | None = "",
         file: FileUpload | None = None
     ) -> Any:
@@ -130,7 +131,7 @@ class SessionsAPI:
         limit: int | None = None,
         cursor: str | None = None,
         with_asset_public_url: bool | None = None,
-        format: str | None = None,
+        format: Literal["acontext", "openai", "anthropic"] = "acontext",
         time_desc: bool | None = None,
     ) -> Any:
         params: dict[str, Any] = {}
