@@ -44,15 +44,10 @@ jobs:
       - name: Start containers
         working-directory: src/server
         run: |
-          cp .env.example .env || echo "No .env.example file found, using defaults"
-          cp core/config.yaml.example core/config.yaml || echo "No config.yaml.example file found, using defaults"
-          # Create volume directories and set permissions for CI environment
-          mkdir -p db/pg db/redis db/rabbitmq db/s3
-          chmod -R 777 db/
-          # echo "Starting containers..."
+          cp .env.example .env 
+          cp core/config.yaml.example core/config.yaml 
 
           docker compose up acontext-server-pg acontext-server-redis acontext-server-rabbitmq acontext-server-seaweedfs-setup acontext-server-seaweedfs acontext-server-api -d
-          ls -la
         
       - name: e2e test
         working-directory: src/client/acontext-py 
