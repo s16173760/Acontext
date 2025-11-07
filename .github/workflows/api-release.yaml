@@ -1,16 +1,16 @@
-name: Core Release
+name: API Release
 
 on:
   push:
     tags:
-      - "core/v*"
+      - "api/v*"
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
-  build-and-push:
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +27,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/memodb-io/acontext-core
+          images: ghcr.io/memodb-io/acontext-api
           tags: |
             type=sha
             type=semver,pattern={{version}},match=v(\d.\d.\d)$
@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64,linux/arm64
-          context: ./src/server/core
+          context: ./src/server/api/go
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
