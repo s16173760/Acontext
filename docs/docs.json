@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "almond",
   "name": "Acontext Docs",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0284C7",
+    "light": "#38BDF8",
+    "dark": "#0369A1"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -18,32 +18,29 @@
             "pages": [
               "index",
               "quickstart",
-              "development"
+              "local"
             ]
           },
           {
             "group": "Context Storage",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              {
+                "group": "Messages",
+                "pages": [
+                  "store/messages/multi-provider",
+                  "store/messages/multi-modal"
+                ]
+              },
+              "store/disk"
             ]
           },
           {
             "group": "Task Observability",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
+            "pages": []
           },
           {
             "group": "Agent Self-learning",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
+            "pages": []
           }
         ]
       },
