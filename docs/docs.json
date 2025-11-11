@@ -3,9 +3,9 @@
   "theme": "almond",
   "name": "Acontext Docs",
   "colors": {
-    "primary": "#0284C7",
-    "light": "#38BDF8",
-    "dark": "#0369A1"
+    "primary": "#0EA5E9",
+    "light": "#7DD3FC",
+    "dark": "#0284C7"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -40,7 +40,8 @@
             "group": "Task Observability",
             "icon": "radar",
             "pages": [
-              "observe/agent_tasks"
+              "observe/agent_tasks",
+              "observe/dashboard"
             ]
           },
           {

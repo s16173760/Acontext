@@ -90,8 +90,7 @@ from acontext import FileUpload
 # Create a file upload
 file = FileUpload(
     filename="sprint-plan.md",
-    content=b"# Sprint Plan\n\n## Goals\n- Complete user authentication\n- Fix critical bugs",
-    content_type="text/markdown"
+    content=b"# Sprint Plan\n\n## Goals\n- Complete user authentication\n- Fix critical bugs"
 )
 
 # Upload to disk with path and metadata
@@ -321,6 +320,9 @@ console.log("Disk deleted");
 <Warning>
 Deleting a disk removes all artifacts stored within it. This action cannot be undone.
 </Warning>
+<Note>
+You can skip this clean-up step and goto dashboard to view the artifacts ([screenshot](/observe/dashboard#artifact-viewer)).
+</Note>
 </Step>
 </Steps>
 
@@ -349,8 +351,7 @@ def main():
             disk.id,
             file=FileUpload(
                 filename="notes.md",
-                content=b"# Meeting Notes\nDiscussed Q4 goals.",
-                content_type="text/markdown"
+                content=b"# Meeting Notes\nDiscussed Q4 goals."
             ),
             file_path="/meetings/",
             meta={"date": "2024-01-15", "attendees": 5}
@@ -466,7 +467,7 @@ Both SDKs support multiple file upload formats for convenience:
 <CodeGroup>
 ```python Python
 # Using FileUpload object (recommended)
-file = FileUpload(filename="doc.txt", content=b"data", content_type="text/plain")
+file = FileUpload(filename="doc.txt", content=b"data")
 
 # Using tuple with bytes
 file = ("doc.txt", b"data")
@@ -560,8 +561,7 @@ async def main():
             disk.id,
             file=FileUpload(
                 filename="async.txt",
-                content=b"Async content",
-                content_type="text/plain"
+                content=b"Async content"
             )
         )
         
