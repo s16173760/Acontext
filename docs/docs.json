@@ -48,7 +48,8 @@
             "group": "Agent Self-learning",
             "icon": "sparkles",
             "pages": [
-              "learn/skill-space"
+              "learn/skill-space",
+              "learn/search-skills"
             ]
           }
         ]
