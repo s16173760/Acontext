@@ -36,7 +36,9 @@
           },
           {
             "group": "Task Observability",
-            "pages": []
+            "pages": [
+              "observe/agent_tasks"
+            ]
           },
           {
             "group": "Agent Self-learning",

@@ -1,4 +1,394 @@
 ---
-title: Observe Agent Tasks
-description: "Acontetxt will automatically tracking the tasks and their statuses of the Agent."
+title: "Observe Agent Tasks"
+description: "Automatically extract and monitor tasks from agent conversations to understand agent planning and execution"
 ---
+
+Acontext automatically extracts tasks from your agent's conversation messages. When an agent outlines a plan or breaks down work into steps, Acontext detects and tracks these tasks in the background, giving you visibility into what your agent is planning and executing.
+
+## How Task Extraction Works
+
+As your agent converses with users, Acontext analyzes the conversation context to identify planned tasks. For example, when an agent responds with "My plan is: 1. Search for data, 2. Create a project, 3. Deploy", Acontext extracts these as individual trackable tasks.
+
+**Key capabilities:**
+- **Automatic extraction**: Tasks are detected from conversation context without manual tracking
+- **Status monitoring**: Track whether tasks are `pending`, `running`, `success`, or `failed`
+- **Execution insights**: See what your agent planned versus what it actually completed
+
+<Note>
+Task extraction happens asynchronously with a small delay. After sending messages, wait a moment before retrieving tasks to ensure extraction is complete.
+</Note>
+
+## Quick Start: Test Task Extraction
+
+This example demonstrates how to verify that Acontext correctly extracts tasks from your agent's messages. You'll send a conversation where the agent outlines a plan, then retrieve the extracted tasks to confirm they were detected.
+
+<CodeGroup>
+```python Python
+from acontext import AcontextClient
+
+# Initialize client
+client = AcontextClient(
+    api_key="sk-ac-your-root-api-bearer-token"
+)
+
+# Create a project and session
+session = client.sessions.create()
+
+# Conversation messages
+messages = [
+    {
+        "role": "user",
+        "content": "I need to write a landing page of iPhone 15 pro max"
+    },
+    {
+        "role": "assistant",
+        "content": "Sure, my plan is below:\n1. Search for the latest news about iPhone 15 pro max\n2. Init Next.js project for the landing page\n3. Deploy the landing page to the website"
+    },
+    {
+        "role": "user",
+        "content": "That sounds good. Let's first collect the message and report to me before any landing page coding."
+    },
+    {
+        "role": "assistant",
+        "content": "Sure, I will first collect the message then report to you before any landing page coding."
+    }
+]
+
+# Send messages in a loop
+for msg in messages:
+    client.sessions.send_message(
+        session_id=session.id,
+        blob=msg,
+        format="openai"
+    )
+
+# Wait for task extraction to complete (small async delay)
+import time
+time.sleep(2)
+
+# Retrieve extracted tasks from the conversation
+tasks_response = client.sessions.get_tasks(session.id)
+
+# Display tasks
+print(f"Total tasks: {len(tasks_response.items)}")
+for task in tasks_response.items:
+    print(f"\nTask #{task.order}:")
+    print(f"  ID: {task.id}")
+    print(f"  Status: {task.status}")
+    
+    # Show progress updates if available
+    if "progresses" in task.data:
+        print(f"  Progress updates: {len(task.data['progresses'])}")
+        for progress in task.data["progresses"]:
+            print(f"    - {progress}")
+    
+    # Show user preferences if available
+    if "user_preferences" in task.data:
+        print(f"  User preferences:")
+        for pref in task.data["user_preferences"]:
+            print(f"    - {pref}")
+```
+
+```typescript TypeScript
+import { AcontextClient } from 'acontext-ts';
+
+// Initialize client
+const client = new AcontextClient({
+    apiKey: 'sk-ac-your-root-api-bearer-token'
+});
+
+async function demonstrateTasks() {
+    // Create a project and session
+    const project = await client.spaces.createProject({
+        name: 'iPhone Landing Page Project'
+    });
+    const session = await client.sessions.create({
+        projectId: project.id
+    });
+
+    // Conversation messages
+    const messages = [
+        {
+            role: 'user',
+            content: 'I need to write a landing page of iPhone 15 pro max'
+        },
+        {
+            role: 'assistant',
+            content: 'Sure, my plan is below:\n1. Search for the latest news about iPhone 15 pro max\n2. Init Next.js project for the landing page\n3. Deploy the landing page to the website'
+        },
+        {
+            role: 'user',
+            content: "That sounds good. Let's first collect the message and report to me before any landing page coding."
+        },
+        {
+            role: 'assistant',
+            content: 'Sure, I will first collect the message then report to you before any landing page coding.'
+        }
+    ];
+
+    // Send messages in a loop
+    for (const msg of messages) {
+        await client.sessions.sendMessage(session.id, {
+            blob: msg,
+            format: 'openai'
+        });
+    }
+
+    // Wait for task extraction to complete (small async delay)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Retrieve extracted tasks from the conversation
+    const tasksResponse = await client.sessions.getTasks(session.id);
+
+    // Display tasks
+    console.log(`Total tasks: ${tasksResponse.items.length}`);
+    for (const task of tasksResponse.items) {
+        console.log(`\nTask #${task.order}:`);
+        console.log(`  ID: ${task.id}`);
+        console.log(`  Status: ${task.status}`);
+        
+        // Show progress updates if available
+        if (task.data.progresses) {
+            console.log(`  Progress updates: ${task.data.progresses.length}`);
+            task.data.progresses.forEach(progress => {
+                console.log(`    - ${progress}`);
+            });
+        }
+        
+        // Show user preferences if available
+        if (task.data.user_preferences) {
+            console.log(`  User preferences:`);
+            task.data.user_preferences.forEach(pref => {
+                console.log(`    - ${pref}`);
+            });
+        }
+    }
+}
+
+demonstrateTasks();
+```
+</CodeGroup>
+
+<Check>
+After running this code, you'll see the tasks that Acontext automatically extracted from the agent's planned steps, confirming the extraction is working correctly.
+</Check>
+
+## Understanding Task Data
+
+Each extracted task contains a `data` field with structured information captured from the conversation:
+
+```python
+{
+    "progresses": [
+        "I searched for iPhone 15 Pro Max specifications and found the latest features",
+        "I've initialized the Next.js project with the latest template"
+    ],
+    "user_preferences": [
+        "Focus on the camera capabilities and battery life",
+        "Make sure the landing page is mobile-responsive"
+    ]
+}
+```
+
+### Progress Tracking
+
+The `progresses` array captures the agent's narrative updates as it works through tasks. Each entry describes what the agent accomplished, written in first-person perspective.
+
+```python
+# Access progress updates
+for task in tasks_response.items:
+    if "progresses" in task.data:
+        print(f"Task {task.order} progress:")
+        for progress in task.data["progresses"]:
+            print(f"  - {progress}")
+```
+
+### User Preferences
+
+The `user_preferences` array stores specific requirements or preferences the user mentioned for each task during the conversation.
+
+```python
+# Check user preferences for a task
+for task in tasks_response.items:
+    if "user_preferences" in task.data:
+        print(f"Task {task.order} user preferences:")
+        for pref in task.data["user_preferences"]:
+            print(f"  - {pref}")
+```
+
+<Note>
+Progress and preferences are appended to tasks as the conversation continues. Early in a conversation, these arrays may be empty or contain only initial entries.
+</Note>
+
+## Retrieving Task History
+
+For sessions with many extracted tasks, use pagination and filtering to efficiently access task data for analysis.
+
+<CodeGroup>
+```python Python
+# Get the 5 most recent tasks
+recent_tasks = client.sessions.get_tasks(
+    session.id,
+    limit=5,
+    time_desc=True
+)
+
+# Paginate through all tasks
+all_tasks = []
+cursor = None
+
+while True:
+    response = client.sessions.get_tasks(
+        session.id,
+        limit=20,
+        cursor=cursor
+    )
+    all_tasks.extend(response.items)
+    
+    if not response.has_more:
+        break
+    cursor = response.next_cursor
+
+print(f"Retrieved {len(all_tasks)} total tasks")
+```
+
+```typescript TypeScript
+// Get the 5 most recent tasks
+const recentTasks = await client.sessions.getTasks(session.id, {
+    limit: 5,
+    timeDesc: true
+});
+
+// Paginate through all tasks
+const allTasks = [];
+let cursor = null;
+
+while (true) {
+    const response = await client.sessions.getTasks(session.id, {
+        limit: 20,
+        cursor
+    });
+    allTasks.push(...response.items);
+    
+    if (!response.has_more) {
+        break;
+    }
+    cursor = response.next_cursor;
+}
+
+console.log(`Retrieved ${allTasks.length} total tasks`);
+```
+</CodeGroup>
+
+
+## Use Cases for Agent Developers
+
+<AccordionGroup>
+<Accordion title="Testing task extraction accuracy">
+Verify that Acontext correctly extracts tasks from your agent's conversation patterns. This is essential when developing or updating agent prompts.
+
+```python
+# Get all extracted tasks
+response = client.sessions.get_tasks(session_id, time_desc=False)
+
+# Verify extraction worked
+print(f"Expected 3 tasks, extracted {len(response.items)}")
+for task in response.items:
+    print(f"Task {task.order}: {task.data}")
+```
+</Accordion>
+
+<Accordion title="Debugging agent behavior">
+When your agent isn't completing work as expected, check extracted tasks to see if the agent is planning steps correctly or if it's getting stuck at a specific task.
+
+```python
+response = client.sessions.get_tasks(session_id)
+
+# Identify where the agent got stuck
+for task in response.items:
+    if task.status == "pending":
+        print(f"Agent hasn't started: Task {task.order}")
+    elif task.status == "running":
+        print(f"Agent stuck on: Task {task.order}")
+        # Check last progress update
+        if "progresses" in task.data and task.data["progresses"]:
+            print(f"  Last progress: {task.data['progresses'][-1]}")
+    elif task.status == "failed":
+        print(f"Agent failed at: Task {task.order}")
+        # Check what was done before failure
+        if "progresses" in task.data:
+            print(f"  Completed steps: {len(task.data['progresses'])}")
+```
+</Accordion>
+
+<Accordion title="Analyzing agent planning patterns">
+Collect task data across multiple sessions to understand how your agent breaks down different types of requests. Use this for optimizing prompts or identifying common failure points.
+
+```typescript
+const response = await client.sessions.getTasks(sessionId);
+
+// Analyze planning vs execution
+const planned = response.items.length;
+const completed = response.items.filter(t => t.status === 'success').length;
+const completionRate = (completed / planned) * 100;
+
+console.log(`Agent completed ${completionRate.toFixed(0)}% of planned tasks`);
+```
+</Accordion>
+
+<Accordion title="Reporting agent activity">
+Generate reports on what agents are planning and executing to share with stakeholders or for compliance purposes.
+
+```python
+# Get task history with timestamps
+response = client.sessions.get_tasks(session_id, time_desc=True)
+
+# Create activity report
+print("=== Agent Activity Report ===")
+for task in response.items:
+    print(f"\n{task.created_at} | Task {task.order} | {task.status}")
+    
+    # Show progress summary
+    if "progresses" in task.data:
+        print(f"  Progress entries: {len(task.data['progresses'])}")
+        if task.data["progresses"]:
+            print(f"  Latest: {task.data['progresses'][-1]}")
+    
+    # Show user requirements
+    if "user_preferences" in task.data and task.data["user_preferences"]:
+        print(f"  User requirements: {', '.join(task.data['user_preferences'])}")
+```
+</Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Wait for extraction" icon="clock">
+After sending messages, wait 1-2 seconds before retrieving tasks to ensure the extraction process completes.
+</Card>
+
+<Card title="Test extraction patterns" icon="flask">
+When developing agents, test different conversation patterns to ensure Acontext reliably extracts the tasks you expect.
+</Card>
+
+<Card title="Monitor execution gaps" icon="triangle-exclamation">
+Regularly check for tasks stuck in `pending` or `running` status to identify where your agent needs improvement.
+</Card>
+
+<Card title="Analyze completion rates" icon="chart-line">
+Track the ratio of `success` to `failed` tasks across sessions to measure and improve agent reliability.
+</Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+<Card title="Store Messages" icon="database" href="/store/messages/multi-provider">
+Learn how to store and retrieve agent conversation messages.
+</Card>
+
+<Card title="Sessions API" icon="comments" href="/api-reference/endpoint/create">
+Explore the complete Sessions API reference.
+</Card>
+</CardGroup>
