@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass, field
 from sqlalchemy import String, ForeignKey, Index, CheckConstraint, Column
 from sqlalchemy.orm import relationship
@@ -26,11 +27,6 @@ class Asset(BaseModel):
 class ToolCallMeta(BaseModel):
     name: str
     arguments: dict
-
-
-class ToolResultMeta(BaseModel):
-    name: str
-    result: str
 
 
 class Part(BaseModel):

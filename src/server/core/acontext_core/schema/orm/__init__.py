@@ -2,7 +2,7 @@ from .base import ORM_BASE
 from .project import Project
 from .space import Space
 from .session import Session
-from .message import Message, Part, Asset, ToolCallMeta, ToolResultMeta
+from .message import Message, Part, Asset, ToolCallMeta
 from .task import Task
 from .block import Block
 from .block_embedding import BlockEmbedding
@@ -18,7 +18,6 @@ __all__ = [
     "Message",
     "Part",
     "ToolCallMeta",
-    "ToolResultMeta",
     "Asset",
     "Task",
     "Block",
