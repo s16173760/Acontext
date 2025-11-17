@@ -40,16 +40,17 @@
 
 Acontext is a context data platform that:
 
-- **Stores** contexts & artifacts, using Postgres and S3
-- **Observes** agent tasks and user feedback, and offers a nice Dashboard
-- Enables agent **self-learning** by collecting experiences (or SOPs)
+- **Stores** contexts & artifacts
+- **Observes** agent tasks and user feedback.
+- Enables agent **self-learning** by collecting experiences (SOPs).
+- Offers a **local Dashboard** to view everything.
 
 
 
 We're building it because we believe Acontext can help you:
 
 - **Build a more scalable agent product**: Acontext packs Postgres, Redis, S3, RabbitMQ together to enable multi-modal sessions and aritfacts storages, keep your context managment fast, cheap and easy.
-- **Improve your agent success rate and reduce running steps**: Acontext has built-in **Experience Agent**, which can manage and search the past experiences of tasks. So once your agent successfully completes a complex task for the user, it will almost never make a mistake again.
+- **Improve your agent success rate and reduce running steps**: Acontext has built-in **Experience Agents**, to identify hard tasks, manage and search the past experiences of tasks. So once your agent successfully completes a complex task for the user, it will almost never make a mistake again.
 
 so that your agent can be more stable and provide greater value to your users.
 
