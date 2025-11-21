@@ -77,12 +77,13 @@ async def space_construct_agent_curd(
         }
         for sop_data in sop_datas
     ]
+    candidate_data_section = pack_candidate_data_list(candidate_data_list)
+    LOG.info(f"Candidate Data Section: {candidate_data_section}")
+
     _messages = [
         {
             "role": "user",
-            "content": SpaceConstructPrompt.pack_task_input(
-                pack_candidate_data_list(candidate_data_list)
-            ),
+            "content": SpaceConstructPrompt.pack_task_input(candidate_data_section),
         }
     ]
     just_finish = False

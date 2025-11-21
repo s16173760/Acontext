@@ -79,14 +79,14 @@ Use extremely brief wordings to report using the 'report_thinking' tool before c
 2. Does the user report that any task failed and need to re-run?
 3. How existing tasks are related to current conversation? 
 4. Any new task should be created?
-5. Which Messages are contributed to planning? Not the execution.
+5. Which Messages are contributed to planning?
 6. Which Messages are contributed to which task? What the progress of the messages brough to the task?
 7. Any user preferences and personal infos in Current Message section related to complete which tasks?
-8. Any progress should be appended with actual states?
+8. Any progress should be appended?
 9. Which task's status need to be updated?
 10. Briefly describe your tool-call actions to correctly manage the tasks.
 
-Call 'finish' tool if you have finish your jobs.
+Before call 'finish' tool to quit, report your thinking again to make sure every action is covered, if not, continue to perform your job then 'finish'
 """
 
     @classmethod

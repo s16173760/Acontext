@@ -63,10 +63,13 @@ But use `click` tool to click a 'Star' button, this can keep in action because t
 - remove those preferences or infos that are may vary in different user input.
 
 ## Input Format
+### Previous Task Context
+This section contains the previous tasks progresses. 
+Make sure your understand the state of the current task (e.g. which website the agent is on, which db table the agent is querying, etc.)
 ### Task Description
 What the task is and its purpose.
 ### User Preferences and Infos
-User preferences and personal infos for this task.
+User preferences and personal infos extracted from this task.
 ### Raw Working History
 Format:
 ```
@@ -86,16 +89,23 @@ You must report your thinkings (using extrmaly brief wordings) first using the '
 4. How to reduce the tool-calls to build a shortest path to achieve the goal?
 5. Which parameters/values are related to the future user input and should be removed in 'action' and 'preferences'?
 6. Which parameters/values are necessary to make sure the SOP will have no more unexpected errors and back-and-forth retries?
-7. In which general scenarios should we use this SOP? (3~5 words for `use_when`)
-8. Any user preferences can help this general scenarios? (short sentenqces for `preferences`) If not, 'preferences' field should be empty string
+7. Which states we should use from previous tasks context? Make sure your scenarios are context-aware.
+8. In which scenarios should we use this SOP? (3~5 words for `use_when`)
+9. Any user preferences can help this scenarios? (short sentenqces for `preferences`) If not, 'preferences' field should be empty string
 Then decide if you should submit the SOP.
 """
 
     @classmethod
     def pack_task_input(
-        cls, task_description: str, user_preferences: str, history_messages: str
+        cls,
+        previous_task_context: str,
+        task_description: str,
+        user_preferences: str,
+        history_messages: str,
     ) -> str:
-        return f"""### Task Description
+        return f"""### Previous Task Context
+{previous_task_context}
+### Task Description
 {task_description}
 ### User Preferences and Infos
 {user_preferences}
