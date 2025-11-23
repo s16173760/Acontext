@@ -62,12 +62,13 @@ then the detailed repo url should be removed because next time user may input a 
 But use `click` tool to click a 'Star' button, this can keep in action because the 'Star' button is a universal step and unrelated to the user's input.
 ### Preferences
 - remove those preferences or infos that are may vary in different user input.
-### Find the conditions of the Current Task
-- Your SOP's effectiveness should be bounded to certain conditions. For example:
-    - the task is about starring a repo, the conditions is you have to be on github.com so that you can star a repo, you can't star a repo on amazon.com
-    - the task is about querying by certain year, the conditions is in private_lung_cancer table so that SQL query is only valid.
-- You should infer the conditions of the current task from the previous tasks context and working history.
-- Conditions should be concrete rather than abstract, 'on github.com' is better than 'on code website', 'on private_lung_cancer table name' is better than 'on a cancer table'.
+
+## Find the conditions of the Current Task
+- Current Task is only possible when bounded to certain conditions. For example:
+    - the sop is about starring a repo, the inferred conditions is agent is on github.com so that agent can star a repo, the use_when should be 'star a repo on github.com', not 'star a repo'.
+    - the sop is about querying by certain year, the inferred conditions is in private_lung_cancer table so that SQL query is only valid, the use_when should be 'query private_lung_cancer table by certain year', not 'query by certain year'.
+- You must infer the conditions of the current task from the previous tasks context and working history.
+- Conditions must be concrete: 'on github.com' is better than 'on code website', 'on private_lung_cancer MySQL table' is better than 'on a cancer table'.
 - You must include the conditions in the SOP's `use_when` field: 'star a repo on github.com', 'query private_lung_cancer table by certain year'.
 
 ## Input Format
@@ -91,7 +92,7 @@ Format:
 ## Report before Submit
 You must report your thinkings (using extrmaly brief wordings) first using the 'report_thinking' tool:
 1. What's tools have been used?
-2. Find the exact conditions of the Current Task.
+2. Infer the necessary conditions for the Current Task can happened.
 3. Give your judgement on {rule_indices_str} and for each term, what's the scores?, then sum them and score the task complexity.
 4. If it's an easy task, confirm you will set `is_easy_task` to True and only submit and with an empty `tool_sops list
 5. How to reduce the tool-calls to build a shortest path to achieve the goal?
