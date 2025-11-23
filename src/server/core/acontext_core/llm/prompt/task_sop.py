@@ -22,7 +22,7 @@ class TaskSOPPrompt(BasePrompt):
         base_scoring_section = """(c.1) If there're errors because of the wrong tool parameter passing and it can be avoided, + 1 point
 (c.2) If there're back-and-forth retries (not errors) because agent has a wrong strategy, + 1 point.
 (c.3) If agent done something wrong decision before, then user offers some feedbacks/preferences to correct the agent's wrong decision, + 2 points
-(c.4) User explicitly emphasized saving this workflow or experience, + 5 points"""
+(c.4) User explicitly emphasized to remember during the task, + 2 points"""
 
         # Append custom scoring rules if provided
         if customization and customization.custom_scoring_rules:
@@ -61,7 +61,8 @@ For example, if the sop is 'star a github repo',
 then the detailed repo url should be removed because next time user may input a new repo url.
 But use `click` tool to click a 'Star' button, this can keep in action because the 'Star' button is a universal step and unrelated to the user's input.
 ### Preferences
-- remove those preferences or infos that are may vary in different user input.
+- remove those preferences or infos that are may vary in the future input.
+- keep those preferences and infos that are critical to the future SOP execution.
 
 ## Find the conditions of the Current Task
 - Current Task is only possible when bounded to certain conditions. For example:
@@ -99,7 +100,7 @@ You must report your thinkings (using extrmaly brief wordings) first using the '
 6. Which parameters/values are related to the future user input and should be removed in 'action' and 'preferences'?
 7. Which parameters/values are necessary to make sure the SOP will have no more unexpected errors and back-and-forth retries?
 8. When and with which condidtions should we apply this SOP? (for `use_when`)?
-9. Any user preferences when we apply this SOP? (short sentenqces for `preferences`) If not, 'preferences' field should be empty string
+9. Any user preferences to keep for future SOP execution? (for `preferences`) If not, 'preferences' field should be empty string
 Then decide if you should submit the SOP.
 """
 
