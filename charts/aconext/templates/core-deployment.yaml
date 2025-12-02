@@ -63,6 +63,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "aconext.core.name" . }}-config
                   key: LLM_SDK
+            - name: LLM_SIMPLE_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "aconext.core.name" . }}-config
+                  key: LLM_SIMPLE_MODEL
             {{- if .Values.secrets.llm.apiKey }}
             - name: LLM_API_KEY
               valueFrom:

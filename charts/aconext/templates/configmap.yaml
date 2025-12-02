@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/component: core
 data:
   LLM_SDK: {{ .Values.core.env.LLM_SDK | default "openai" | quote }}
+  LLM_SIMPLE_MODEL: {{ .Values.core.env.LLM_SIMPLE_MODEL | default "gpt-4.1" | quote }}
   {{- if .Values.core.env.LLM_BASE_URL }}
   LLM_BASE_URL: {{ .Values.core.env.LLM_BASE_URL | quote }}
   {{- end }}

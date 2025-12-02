@@ -26,6 +26,7 @@ core:
   env:
     # LLM Configuration
     LLM_BASE_URL: ""  # Optional: Custom LLM base URL
+    LLM_SIMPLE_MODEL: "gpt-4.1"  # Default LLM model
     LLM_SDK: "openai"  # LLM SDK: "openai" or "anthropic"
     
     # S3 Configuration (AWS S3)
@@ -93,7 +94,7 @@ api:
     API_EXPORT_PORT: "8029"
     
     # S3 Configuration (AWS S3)
-    S3_ENDPOINT: ""  # AWS S3 endpoint, e.g., https://s3.amazonaws.com
+    S3_ENDPOINT: ""  # AWS S3 endpoint
     S3_REGION: "us-east-2"  # AWS region
     S3_BUCKET: "acontext-assets"  # S3 bucket name
   
