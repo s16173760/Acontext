@@ -51,12 +51,157 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Create the name of the core service account to use
 */}}
-{{- define "aconext.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "aconext.fullname" .) .Values.serviceAccount.name }}
+{{- define "aconext.core.serviceAccountName" -}}
+{{- if .Values.core.serviceAccount.create }}
+{{- default (include "aconext.core.name" .) .Values.core.serviceAccount.name }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- default "default" .Values.core.serviceAccount.name }}
 {{- end }}
+{{- end }}
+
+{{/*
+Create the name of the api service account to use
+*/}}
+{{- define "aconext.api.serviceAccountName" -}}
+{{- if .Values.api.serviceAccount.create }}
+{{- default (include "aconext.api.name" .) .Values.api.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.api.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+Core service name
+*/}}
+{{- define "aconext.core.name" -}}
+{{- printf "%s-core" (include "aconext.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+API service name
+*/}}
+{{- define "aconext.api.name" -}}
+{{- printf "%s-api" (include "aconext.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Core selector labels
+*/}}
+{{- define "aconext.core.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "aconext.name" . }}-core
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+API selector labels
+*/}}
+{{- define "aconext.api.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "aconext.name" . }}-api
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Get PostgreSQL host
+*/}}
+{{- define "aconext.postgresql.host" -}}
+{{- if .Values.postgresql.enabled }}
+{{- printf "%s-postgresql" .Release.Name }}
+{{- else }}
+{{- .Values.external.postgresql.host }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get PostgreSQL port
+*/}}
+{{- define "aconext.postgresql.port" -}}
+{{- if .Values.postgresql.enabled }}
+{{- "5432" }}
+{{- else }}
+{{- .Values.external.postgresql.port | default "5432" | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get Redis host
+*/}}
+{{- define "aconext.redis.host" -}}
+{{- if .Values.redis.enabled }}
+{{- printf "%s-redis-master" .Release.Name }}
+{{- else }}
+{{- .Values.external.redis.host }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get Redis port
+*/}}
+{{- define "aconext.redis.port" -}}
+{{- if .Values.redis.enabled }}
+{{- "6379" }}
+{{- else }}
+{{- .Values.external.redis.port | default "6379" | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get RabbitMQ host
+*/}}
+{{- define "aconext.rabbitmq.host" -}}
+{{- if .Values.rabbitmq.enabled }}
+{{- printf "%s-rabbitmq" .Release.Name }}
+{{- else }}
+{{- .Values.external.rabbitmq.host }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get RabbitMQ port
+*/}}
+{{- define "aconext.rabbitmq.port" -}}
+{{- if .Values.rabbitmq.enabled }}
+{{- "5672" }}
+{{- else }}
+{{- .Values.external.rabbitmq.port | default "5672" | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get PostgreSQL database URL
+*/}}
+{{- define "aconext.postgresql.url" -}}
+{{- $host := include "aconext.postgresql.host" . }}
+{{- $port := include "aconext.postgresql.port" . }}
+{{- $user := .Values.postgresql.auth.username | default .Values.external.postgresql.username }}
+{{- $password := .Values.postgresql.auth.password | default .Values.external.postgresql.password }}
+{{- $database := .Values.postgresql.auth.database | default .Values.external.postgresql.database }}
+{{- printf "postgresql://%s:%s@%s:%s/%s" $user $password $host $port $database }}
+{{- end }}
+
+{{/*
+Get Redis URL
+*/}}
+{{- define "aconext.redis.url" -}}
+{{- $host := include "aconext.redis.host" . }}
+{{- $port := include "aconext.redis.port" . }}
+{{- $password := .Values.redis.auth.password | default .Values.external.redis.password }}
+{{- if $password }}
+{{- printf "redis://:%s@%s:%s" $password $host $port }}
+{{- else }}
+{{- printf "redis://%s:%s" $host $port }}
+{{- end }}
+{{- end }}
+
+{{/*
+Get RabbitMQ URL
+*/}}
+{{- define "aconext.rabbitmq.url" -}}
+{{- $host := include "aconext.rabbitmq.host" . }}
+{{- $port := include "aconext.rabbitmq.port" . }}
+{{- $user := .Values.rabbitmq.auth.username | default .Values.external.rabbitmq.username }}
+{{- $password := .Values.rabbitmq.auth.password | default .Values.external.rabbitmq.password }}
+{{- $vhost := .Values.rabbitmq.auth.vhost | default .Values.external.rabbitmq.vhost | default "/" }}
+{{- printf "amqp://%s:%s@%s:%s/%s" $user $password $host $port $vhost }}
 {{- end }}

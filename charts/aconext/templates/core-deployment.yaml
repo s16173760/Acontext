@@ -1,0 +1,105 @@
+{{- if .Values.core.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aconext.core.name" . }}
+  labels:
+    {{- include "aconext.labels" . | nindent 4 }}
+    app.kubernetes.io/component: core
+spec:
+  replicas: {{ .Values.core.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "aconext.core.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.core.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "aconext.core.selectorLabels" . | nindent 8 }}
+        {{- with .Values.core.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aconext.core.serviceAccountName" . }}
+      {{- with .Values.core.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: core
+          {{- with .Values.core.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.core.image.repository }}:{{ .Values.core.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.core.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.core.service.port }}
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              value: {{ include "aconext.postgresql.url" . | quote }}
+            - name: REDIS_URL
+              value: {{ include "aconext.redis.url" . | quote }}
+            - name: MQ_URL
+              value: {{ include "aconext.rabbitmq.url" . | quote }}
+            {{- if .Values.core.env.LLM_BASE_URL }}
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "aconext.core.name" . }}-config
+                  key: LLM_BASE_URL
+            {{- end }}
+            - name: LLM_SDK
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "aconext.core.name" . }}-config
+                  key: LLM_SDK
+            {{- if .Values.secrets.llm.apiKey }}
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aconext.core.name" . }}-secret
+                  key: LLM_API_KEY
+            {{- end }}
+            {{- if .Values.core.env.S3_ENDPOINT }}
+            - name: S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "aconext.core.name" . }}-config
+                  key: S3_ENDPOINT
+            {{- end }}
+          {{- with .Values.core.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.core.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.core.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.core.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.core.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.core.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
