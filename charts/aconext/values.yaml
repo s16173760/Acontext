@@ -270,3 +270,7 @@ httpRoute:
     api:
       enabled: true
       path: "/"  # Path prefix for API routes (matches / and all subpaths)
+  # TLS configuration
+  tls:
+    # Rememer to create correct Gateway resource with HTTPS listener, https://gateway-api.sigs.k8s.io/guides/http-redirect-rewrite/#http-to-https-redirects
+    enabled: false
