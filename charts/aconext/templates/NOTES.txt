@@ -48,6 +48,15 @@
   RabbitMQ: External ({{ .Values.external.rabbitmq.host }}:{{ .Values.external.rabbitmq.port }})
 {{- end }}
 
-6. API Documentation:
-  Swagger UI: http://<API_URL>/swagger/index.html
-  Health Check: http://<API_URL>/health
+{{- if and .Values.httpRoute.enabled .Values.httpRoute.gateway.name }}
+{{- if .Values.httpRoute.hostnames }}
+6. API Health Check:
+{{- range .Values.httpRoute.hostnames }}
+  Health Check: http://{{ . }}/health
+{{- end }}
+{{- else }}
+6. API Health Check:
+  Health Check: http://<GATEWAY_IP>/health
+  (Note: Configure httpRoute.hostnames to get the full URL)
+{{- end }}
+{{- end }}

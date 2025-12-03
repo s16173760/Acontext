@@ -254,4 +254,19 @@ secrets:
 
 # TOOD: opentelemetry collector
 
-# TODO: HTTPRoute configuration (Gateway API)
+# HTTPRoute configuration (Gateway API)
+# HTTPRoute is used to define routing rules for the Gateway API
+httpRoute:
+  enabled: false
+  # Gateway name and namespace where the HTTPRoute will be attached
+  gateway:
+    name: ""  # Gateway name (e.g., "main-gateway")
+    namespace: ""  # Gateway namespace (defaults to release namespace if empty)
+  # Hostnames for the routes
+  hostnames: []  # e.g., ["api.example.com"]
+  # Routes configuration
+  routes:
+    # API routes
+    api:
+      enabled: true
+      path: "/"  # Path prefix for API routes (matches / and all subpaths)
